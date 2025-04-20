@@ -97,7 +97,7 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 # Or for better compatibility with conda
-conda install --file requirements-conda.txt  # If available
+conda install --file requirements.txt
 ```
 
 #### Option 2: Using Conda Environment
