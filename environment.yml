@@ -1,0 +1,54 @@
+name: egen-security
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  # Python version
+  - python=3.9
+  
+  # Core dependencies
+  - fastapi=0.95.0
+  - uvicorn=0.22.0
+  - pydantic=2.0.0
+  - python-dotenv=1.0.0
+  
+  # Database
+  - sqlalchemy=2.0.0
+  - pymongo=4.3.0
+  
+  # AI/ML
+  - pytorch=2.0.1
+  - cpuonly  # Remove this for CUDA support
+  
+  # Data processing
+  - numpy=1.24.0
+  - pandas=2.0.0
+  - matplotlib=3.7.0
+  
+  # Development
+  - pytest=7.3.1
+  - black=23.3.0
+  
+  # Use pip for packages not available in conda
+  - pip
+  - pip:
+    # AI/ML
+    - transformers>=4.30.0
+    
+    # Security
+    - cryptography>=41.0.0
+    - passlib>=1.7.4
+    - pyjwt>=2.7.0
+    
+    # Web
+    - python-multipart>=0.0.6
+    
+    # Utilities
+    - markdown>=3.4.0
+    - colorama>=0.4.6
+    - pyyaml>=6.0.0
+
+# Environment variables
+variables:
+  PYTHONPATH: ${CONDA_PREFIX}/../.. 

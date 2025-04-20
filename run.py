@@ -12,6 +12,7 @@ import urllib.request
 import zipfile
 import tarfile
 import json
+import argparse
 
 # Process list for clean termination
 processes = []
@@ -65,6 +66,10 @@ venv_dir = "venv"
 venv_python = os.path.join(venv_dir, "Scripts", "python.exe") if is_windows else os.path.join(venv_dir, "bin", "python")
 venv_pip = f'"{venv_python}" -m pip'
 
+# Define conda environment
+conda_env_name = "egen-security"
+conda_cmd = "conda.exe" if is_windows else "conda"
+
 # Node.js download URLs and versions
 NODE_VERSION = "18.18.0"  # LTS version
 NODE_DOWNLOAD_URLS = {
@@ -113,6 +118,24 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
+
+def check_conda_installed():
+    """Check if conda is installed and available on PATH."""
+    try:
+        result = subprocess.run(f"{conda_cmd} --version", shell=True, capture_output=True, text=True)
+        return result.returncode == 0
+    except:
+        return False
+
+def check_conda_env_exists(env_name):
+    """Check if conda environment exists."""
+    try:
+        result = subprocess.run(f"{conda_cmd} env list", shell=True, capture_output=True, text=True)
+        if result.returncode == 0:
+            return env_name in result.stdout
+        return False
+    except:
+        return False
 
 def check_python_dependencies():
     """Check if essential Python packages are installed."""
@@ -357,44 +380,49 @@ def install_node_js():
         return False
 
 def run_command(cmd, capture_output=False, check=True):
-    """Run a command with better error handling."""
+    """Run a command and return the result."""
     try:
         if capture_output:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=check)
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            if check and result.returncode != 0:
+                print_colored(f"Command failed: {cmd}", Colors.RED)
+                print_colored(f"Error: {result.stderr}", Colors.RED)
+                return None
             return result
         else:
-            subprocess.run(cmd, shell=True, check=check)
-            return True
+            return subprocess.run(cmd, shell=True, check=check) if check else subprocess.run(cmd, shell=True)
     except subprocess.CalledProcessError as e:
         print_colored(f"Command failed: {cmd}", Colors.RED)
-        if hasattr(e, 'output') and e.output:
-            print(e.output)
-        if hasattr(e, 'stderr') and e.stderr:
-            print(e.stderr)
+        print_colored(f"Error: {str(e)}", Colors.RED)
         return None
     except Exception as e:
         print_colored(f"Error executing command: {cmd}", Colors.RED)
-        print_colored(f"Error: {str(e)}", Colors.RED)
+        print_colored(f"Error details: {str(e)}", Colors.RED)
+        traceback.print_exc()
         return None
 
 def setup_environment_files():
-    """Check if environment files exist and create them from examples if needed."""
-    # Check for .env file
+    """Set up .env files if they don't exist."""
+    # Check and create .env file from .env.example if present
     if not os.path.exists(".env") and os.path.exists(".env.example"):
         print_colored("Creating .env file from .env.example...", Colors.YELLOW)
         try:
-            shutil.copy(".env.example", ".env")
+            with open(".env.example", "r") as src:
+                with open(".env", "w") as dest:
+                    for line in src:
+                        dest.write(line)
             print_colored(".env file created successfully", Colors.GREEN)
         except Exception as e:
             print_colored(f"Error creating .env file: {str(e)}", Colors.RED)
     
-    # Check for client/.env file if client directory exists
-    client_env_path = os.path.join("client", ".env")
-    client_env_example_path = os.path.join("client", ".env.example")
-    if os.path.exists("client") and not os.path.exists(client_env_path) and os.path.exists(client_env_example_path):
+    # Check and create client/.env file from client/.env.example if present
+    if os.path.exists("client") and not os.path.exists("client/.env") and os.path.exists("client/.env.example"):
         print_colored("Creating client/.env file from client/.env.example...", Colors.YELLOW)
         try:
-            shutil.copy(client_env_example_path, client_env_path)
+            with open("client/.env.example", "r") as src:
+                with open("client/.env", "w") as dest:
+                    for line in src:
+                        dest.write(line)
             print_colored("client/.env file created successfully", Colors.GREEN)
         except Exception as e:
             print_colored(f"Error creating client/.env file: {str(e)}", Colors.RED)
@@ -427,9 +455,156 @@ def setup_environment_files():
         except Exception as e:
             print_colored(f"Error creating minimal requirements file: {str(e)}", Colors.RED)
 
+def run_server_conda():
+    """Setup and run the FastAPI server using Conda environment."""
+    print_colored("Setting up FastAPI server with Conda...", Colors.BLUE)
+    
+    # Check if conda is installed
+    if not check_conda_installed():
+        print_colored("Conda is not installed or not in PATH.", Colors.RED)
+        print_colored("Please install Conda from https://docs.conda.io/en/latest/miniconda.html", Colors.YELLOW)
+        print_colored("Falling back to virtual environment...", Colors.YELLOW)
+        return run_server()
+    
+    # Check if conda environment exists
+    if not check_conda_env_exists(conda_env_name):
+        print_colored(f"Creating Conda environment '{conda_env_name}'...", Colors.YELLOW)
+        
+        # Check if environment.yml exists
+        if os.path.exists("environment.yml"):
+            print_colored("Creating Conda environment from environment.yml...", Colors.YELLOW)
+            if not run_command(f"{conda_cmd} env create -f environment.yml"):
+                print_colored("Failed to create Conda environment from environment.yml.", Colors.RED)
+                print_colored("Trying to create a basic environment instead...", Colors.YELLOW)
+                if not run_command(f"{conda_cmd} create -n {conda_env_name} python=3.9 -y"):
+                    print_colored("Failed to create Conda environment. Falling back to virtual environment...", Colors.RED)
+                    return run_server()
+        else:
+            # Create basic conda environment
+            print_colored(f"Creating basic Conda environment '{conda_env_name}'...", Colors.YELLOW)
+            if not run_command(f"{conda_cmd} create -n {conda_env_name} python=3.9 -y"):
+                print_colored("Failed to create Conda environment. Falling back to virtual environment...", Colors.RED)
+                return run_server()
+    
+    # Install dependencies
+    print_colored("Installing Python dependencies in Conda environment...", Colors.YELLOW)
+    
+    # Command prefix for running commands in the conda environment
+    if is_windows:
+        conda_run_prefix = f"{conda_cmd} run -n {conda_env_name}"
+    else:
+        # On Unix, we use a different approach to ensure conda activate works
+        conda_run_prefix = f"{conda_cmd} run -n {conda_env_name}"
+    
+    try:
+        # Install core packages with conda
+        core_conda_packages = "fastapi uvicorn pydantic python-dotenv"
+        print_colored(f"Installing core packages with conda: {core_conda_packages}", Colors.YELLOW)
+        if not run_command(f"{conda_cmd} install -n {conda_env_name} -c conda-forge {core_conda_packages} -y"):
+            print_colored("Failed to install core packages with conda.", Colors.RED)
+            print_colored("Trying to continue with limited functionality...", Colors.YELLOW)
+        
+        # Install additional conda packages if available
+        additional_conda_packages = "requests sqlalchemy pandas numpy"
+        print_colored(f"Installing additional conda packages: {additional_conda_packages}", Colors.YELLOW)
+        run_command(f"{conda_cmd} install -n {conda_env_name} -c conda-forge {additional_conda_packages} -y", check=False)
+        
+        # Install remaining pip packages
+        if os.path.exists("requirements.txt"):
+            print_colored("Installing remaining packages from requirements.txt with pip...", Colors.YELLOW)
+            run_command(f"{conda_run_prefix} pip install -r requirements.txt", check=False)
+        
+    except Exception as e:
+        print_colored(f"Error installing dependencies: {str(e)}", Colors.RED)
+        print_colored("Continuing with limited functionality...", Colors.YELLOW)
+    
+    # Run the server
+    print_colored("Starting FastAPI server on http://localhost:5000", Colors.GREEN)
+    
+    # Check if src/api/server.py exists
+    main_file_path = os.path.join("src", "api", "server.py")
+    if not os.path.exists(main_file_path):
+        print_colored(f"Error: {main_file_path} not found. Cannot start server.", Colors.RED)
+        print_colored("Make sure you're running this script from the project root directory.", Colors.YELLOW)
+        return None
+    
+    # Set PYTHONPATH to include the project root to help with imports
+    current_env = os.environ.copy()
+    project_root = os.getcwd()
+    if "PYTHONPATH" in current_env:
+        current_env["PYTHONPATH"] = f"{project_root}{os.pathsep}{current_env['PYTHONPATH']}"
+    else:
+        current_env["PYTHONPATH"] = project_root
+        
+    print_colored(f"Setting PYTHONPATH to include: {project_root}", Colors.BLUE)
+    
+    # Try multiple startup methods in order of preference
+    server_start_attempts = [
+        # Method 1: Run directly as a module with explicit Python path and conda run
+        {
+            "cmd": f'{conda_run_prefix} python -m uvicorn src.api.server:app --reload --host 0.0.0.0 --port 5000',
+            "env": current_env,
+            "cwd": project_root
+        },
+        # Method 2: Specify app-dir with conda run
+        {
+            "cmd": f'{conda_run_prefix} python -m uvicorn server:app --app-dir src/api --reload --host 0.0.0.0 --port 5000',
+            "env": current_env,
+            "cwd": project_root
+        },
+        # Method 3: Change to src directory and run from there with conda run
+        {
+            "cmd": f'{conda_run_prefix} python -m uvicorn api.server:app --reload --host 0.0.0.0 --port 5000',
+            "env": current_env,
+            "cwd": os.path.join(project_root, "src")
+        }
+    ]
+    
+    # Try each startup command until one works
+    server_process = None
+    for attempt in server_start_attempts:
+        try:
+            print_colored(f"Attempting to start server with: {attempt['cmd']}", Colors.YELLOW)
+            server_process = subprocess.Popen(
+                attempt["cmd"], 
+                shell=True, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                universal_newlines=True,
+                env=attempt["env"],
+                cwd=attempt["cwd"]
+            )
+            processes.append(server_process)
+            
+            # Wait a moment to see if the process crashes immediately
+            time.sleep(2)
+            if server_process.poll() is not None:
+                # Process has exited
+                output, _ = server_process.communicate()
+                print_colored(f"Server startup failed with command: {attempt['cmd']}", Colors.RED)
+                print_colored(f"Error: {output}", Colors.RED)
+                continue
+            
+            # If we got here, the server likely started successfully
+            print_colored("Server started successfully", Colors.GREEN)
+            return server_process
+            
+        except Exception as e:
+            print_colored(f"Error starting server with command: {attempt['cmd']}", Colors.RED)
+            print_colored(f"Error details: {str(e)}", Colors.RED)
+            continue
+    
+    # If we get here, all attempts failed
+    print_colored("All server startup attempts failed.", Colors.RED)
+    print_colored("Please check your Conda installation and FastAPI dependencies.", Colors.YELLOW)
+    print_colored("Falling back to virtual environment...", Colors.YELLOW)
+    return run_server()
+
 def run_server():
-    """Setup and run the FastAPI server."""
-    print_colored("Setting up FastAPI server...", Colors.BLUE)
+    """Setup and run the FastAPI server using virtual environment."""
+    print_colored("Setting up FastAPI server with virtual environment...", Colors.BLUE)
     
     # Check if virtual environment exists
     if not os.path.exists(venv_dir):
@@ -900,21 +1075,39 @@ def client_process_output(client_process):
             sys.stdout.write(f"[CLIENT] {line}")
 
 def main():
-    """Main function to run both server and client."""
-    print_colored("Starting EGen Security AI...", Colors.HEADER + Colors.BOLD)
+    """Start both the server and client."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Run EGen Security AI server and client")
+    parser.add_argument("--env", choices=["venv", "conda"], default="venv", 
+                        help="Choose Python environment: virtual environment (venv) or Conda (conda)")
+    args = parser.parse_args()
     
-    # Set up environment files
+    print_colored("Welcome to EGen Security AI", Colors.HEADER)
+    print_colored("Starting servers...", Colors.BLUE)
+    
+    # Setup environment files
     setup_environment_files()
     
-    # Start the server in a separate thread
-    server_process = run_server()
-    if server_process:
-        server_thread = threading.Thread(target=lambda: server_process_output(server_process))
-        server_thread.daemon = True
-        server_thread.start()
+    # Check for path issues
+    check_path_for_issues()
     
+    # Start the server in a separate thread
+    server_thread = threading.Thread(target=lambda: server_process_output(
+        run_server_conda() if args.env == "conda" else run_server()
+    ))
+    server_thread.daemon = True
+    server_thread.start()
+    
+    # Wait for server to initialize
+    time.sleep(5)
+    
+    # Start the client in a separate thread
+    client_thread = threading.Thread(target=lambda: client_process_output(run_client()))
+    client_thread.daemon = True
+    client_thread.start()
+    
+    # Wait for both threads to complete
     try:
-        # Keep the main thread alive
         while True:
             time.sleep(1)
     except KeyboardInterrupt:

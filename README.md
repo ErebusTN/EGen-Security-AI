@@ -1,127 +1,227 @@
 # EGen Security AI
 
-An AI-powered security solution for threat detection and analysis.
+An integrated AI-powered security solution for threat detection, risk assessment, and security training.
 
 ## Features
 
-- Advanced AI-based threat detection using transformer models
-- Interactive visualization of security threats
-- Robust against adversarial attacks
-- Comprehensive API for integration with other systems
-- User-friendly React dashboard
+- AI-powered threat detection and vulnerability assessment
+- Security training mode with custom course modules
+- Data visualization and reporting
+- Robust API for integration with existing systems
+- User authentication and role-based access control
+- File scanning and malware detection
+- Secure file upload with content validation
+- Real-time monitoring and alerts
 
 ## Prerequisites
 
-- Python 3.8 or higher
-- Node.js 14.x or higher (18.x recommended)
-- npm 6.x or higher
+- Python 3.9+
+- Node.js 16.0+ and npm 8.0+
+- Conda (optional, for conda environment users)
+- PostgreSQL (optional, for production)
+- CUDA-compatible GPU (optional, for faster model training)
 
 ## Quick Start
 
-The easiest way to get started is to use our one-click run script:
+We've created a one-click startup script to simplify the setup process. This will handle both the Python backend and React frontend.
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/EGen-Security-AI.git
+cd EGen-Security-AI
+
+# Run the application (uses virtual environment by default)
 python run.py
+
+# Or run with Conda environment instead of virtual environment
+python run.py --env conda
 ```
 
-This script will:
-1. Create a Python virtual environment (if it doesn't exist)
-2. Install all Python dependencies
-3. Install all React dependencies
-4. Start the FastAPI server at http://localhost:5000
-5. Start the React client at http://localhost:3000
+The server will be available at http://localhost:5000 and the client at http://localhost:3000.
 
-### Known Issues and Solutions
+## Known Issues and Solutions
 
-#### Path Issues
-- **Path with special characters**: If your project path contains spaces, ampersands (&), or other special characters, you may encounter React script startup issues. Consider moving the project to a simpler path (e.g., `C:\Projects\EGenSecurityAI`).
+### Dependency Installation Issues
 
-#### React Dependencies
-- **TypeScript version conflicts**: The script will automatically handle dependency conflicts using `--legacy-peer-deps` flag.
-- **React scripts not found**: The script will attempt to install react-scripts directly if needed.
-- **Node.js not found**: The script will attempt to detect Node.js installation in common paths. If not found, consider reinstalling Node.js or adding it to your PATH.
+If you encounter issues with dependency installation:
 
-#### Server Startup
-- **Import errors**: The script tries multiple ways to start the server to handle different Python import configurations.
-- **Package installation errors**: If you encounter issues with certain packages, try installing the minimal dependencies first and then add the larger packages one by one.
+1. **NumPy, SciPy or PyTorch errors**: These packages have complex dependencies and might fail to install.
+   - Try installing separately with `pip install numpy scipy`
+   - For PyTorch, visit [pytorch.org](https://pytorch.org/get-started/locally/) and follow their installation guide
+
+2. **C++ Build Tools or GCC required errors**: Some packages need a compiler.
+   - On Windows, install [Visual C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+   - On Linux: `sudo apt-get install build-essential python3-dev`
+   - On macOS: `xcode-select --install`
+
+3. **Path issues with special characters**: If your project path contains spaces or special characters:
+   - Move the project to a simple path (e.g., `C:\Projects\EgenSecurityAI`)
+   - Avoid paths with spaces, unicode characters, or special symbols
+
+4. **Environment choice**: If you're having issues with the virtual environment:
+   - Try using the Conda environment instead by using the `--env conda` flag:
+   ```bash
+   python run.py --env conda
+   ```
+   - This uses Conda for dependency management which can handle complex packages better
+
+### Node.js and npm Issues
+
+If npm commands fail:
+
+1. Ensure Node.js is installed and in your PATH
+2. Try running with administrator privileges
+3. If using Conda, you can also install Node.js via Conda:
+   ```bash
+   conda install -c conda-forge nodejs
+   ```
 
 ## Manual Setup
 
-### Backend (FastAPI)
+If you prefer to set up the application manually or the one-click script doesn't work for you, follow these steps:
+
+### Setting up the Backend
+
+#### Option 1: Using Python Virtual Environment
 
 ```bash
-# Create and activate a virtual environment
+# Create a virtual environment
 python -m venv venv
-# On Windows
+
+# Activate the virtual environment
+# On Windows:
 venv\Scripts\activate
-# On macOS/Linux
-source venv/bin activate
+# On macOS/Linux:
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Start the server
-uvicorn src.api.server:app --host 0.0.0.0 --port 5000 --reload
+# Or for better compatibility with conda
+conda install --file requirements-conda.txt  # If available
 ```
 
-### Frontend (React)
+#### Option 2: Using Conda Environment
+
+```bash
+# Create a new conda environment
+conda create -n egen-security python=3.9
+
+# Activate the conda environment
+conda activate egen-security
+
+# Option 1: Install from environment.yml (recommended)
+conda env create -f environment.yml
+# OR Option 2: Install dependencies manually
+pip install -r requirements.txt
+```
+
+### Setting the PYTHONPATH
+
+For the imports to work correctly, you need to set the PYTHONPATH to the project root:
+
+```bash
+# On Unix/Mac
+export PYTHONPATH=$PWD
+
+# On Windows
+set PYTHONPATH=%CD%
+
+# If using conda, you can also set the PYTHONPATH permanently for your environment:
+conda env config vars set PYTHONPATH=$PWD  # Unix/Mac
+conda env config vars set PYTHONPATH=%CD%  # Windows
+```
+
+### Installing Specific Backend Dependencies
+
+If you encounter issues with some packages:
+
+```bash
+# Install core dependencies first
+pip install fastapi uvicorn pydantic
+
+# Or with conda:
+conda install fastapi uvicorn pydantic
+conda install -c conda-forge sqlalchemy pymongo python-dotenv cryptography
+```
+
+### Conda Specific Issues
+
+If you're using conda and encounter issues:
+1. Make sure conda-forge is in your channels:
+
+```bash
+conda config --add channels conda-forge
+```
+
+2. Try creating a minimal environment first and then add packages:
+
+```bash
+conda create -n egen-security python=3.9 fastapi uvicorn pydantic
+conda activate egen-security
+```
+
+3. To export your conda environment for sharing:
+
+```bash
+# Full environment with exact packages
+conda env export > environment.yml
+# Core packages only (better for cross-platform sharing)
+conda env export --from-history > environment.yml
+```
+
+### Running the Backend Server
+
+```bash
+# Make sure your virtual environment is activated
+uvicorn src.api.server:app --reload --host 0.0.0.0 --port 5000
+
+# Or if using conda
+conda run -n egen-security uvicorn src.api.server:app --reload --host 0.0.0.0 --port 5000
+```
+
+The API will be available at http://localhost:5000 and the API documentation at http://localhost:5000/docs.
+
+### Setting up the Frontend
 
 ```bash
 # Navigate to the client directory
 cd client
 
-# Install dependencies with legacy peer deps to handle TypeScript conflicts
-npm install --legacy-peer-deps
-
-# If the above fails, try:
-npm install --force
+# Install dependencies
+npm install
 
 # Start the development server
-npm run start
-
-# If that fails, try:
-npx react-scripts start
+npm start
 ```
 
-## Troubleshooting
+The React application will be available at http://localhost:3000.
 
-### Server Issues
+### Troubleshooting Frontend Issues
 
-If you encounter Python import errors:
-1. Make sure your PYTHONPATH includes the project root directory:
-   ```bash
-   export PYTHONPATH=$PWD  # Unix/Mac
-   set PYTHONPATH=%CD%     # Windows
-   ```
-2. Try installing only the minimal dependencies if the full requirements.txt fails:
-   ```bash
-   pip install fastapi uvicorn pydantic sqlalchemy pymongo python-dotenv cryptography
-   ```
+1. If npm install fails with dependency conflicts:
 
-### React Issues
+```bash
+npm install --legacy-peer-deps
+```
 
-If you encounter npm start issues:
-1. Check if Node.js is properly installed:
-   ```bash
-   node --version
-   npm --version
-   ```
-2. Try using npx instead:
-   ```bash
-   npx react-scripts start
-   ```
-3. If your path contains special characters, move the project to a simpler path without spaces, ampersands, or other special characters.
-4. Make sure your .env files exist in both root and client directories (run.py creates these automatically).
+2. If you need to clear npm cache:
 
-### Requirements Installation Issues
+```bash
+npm cache clean --force
+```
 
-If you encounter issues installing packages from requirements.txt:
-1. Try installing them in smaller groups or one by one.
-2. For packages with binary dependencies (like torch), consider installing pre-built wheels:
-   ```bash
-   pip install torch==2.0.1 --index-url https://download.pytorch.org/whl/cpu
-   ```
-3. Comment out optional packages and install only what you need.
+3. If you get EACCES errors:
+
+```bash
+sudo npm install
+# Or on Windows, run Command Prompt as Administrator
+```
+
+4. When using conda, prefer conda packages over pip when possible:
+
+```bash
+conda install numpy pandas matplotlib
+```
 
 ## Docker Deployment
 
@@ -223,6 +323,43 @@ model = RobustSecurityModel(
 adv_result = model.adversarial_detection("Potentially adversarial input")
 ```
 
+## Environment Management
+
+### Using Python venv (Default)
+The project's run.py script uses Python's built-in venv module by default.
+
+### Using Conda
+Alternatively, you can use Conda for environment management:
+
+```bash
+# Create conda environment from environment.yml
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate egen-security
+
+# Run the application
+python run.py
+```
+
+To create environment.yml from scratch:
+```bash
+name: egen-security
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - fastapi
+  - uvicorn
+  - pydantic
+  - python-dotenv
+  - pip
+  - pip:
+    - torch==2.0.1
+    # Add other pip-only packages here
+```
+
 ## Project Structure
 
 ```
@@ -261,6 +398,7 @@ egen-security-ai/
 ├── .env.example            # Example environment variables
 ├── .gitignore              # Git ignore file
 ├── requirements.txt        # Python dependencies
+├── environment.yml         # Conda environment specification
 ├── run.py                  # One-click run script
 └── main.py                 # Application entry point
 ```
