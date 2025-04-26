@@ -83,34 +83,18 @@ Follow these guidelines when creating new courses:
 ### Basics
 - **Cybersecurity Fundamentals**: Introduction to key security concepts
 - **Digital Privacy**: Controlling your information online
-- **Password Security Basics**: Create strong passwords that are hard to guess
-- **Safe Web Browsing**: How to explore the internet safely
-- **Protecting Your Personal Information**: Keep your private details secure
-- **Recognizing Phishing Attempts**: Spot scammers trying to trick you
-- **Social Media Safety**: Stay safe while using social networks
+- *[More courses to be added]*
 
 ### Intermediate
 - **Network Security Fundamentals**: Understanding how to secure computer networks
-- **Understanding Malware**: Learn about viruses and how they spread
-- **Wireless Network Security**: Keep your WiFi network safe
-- **Personal Device Security**: Protect your phones and tablets
-- **Security for Online Shopping**: Shop online without getting scammed
-- **Introduction to Encryption**: How secret codes protect your information
+- *[More courses to be added]*
 
 ### Advanced
 - **Ethical Hacking Fundamentals**: Introduction to security testing techniques
-- **Secure Coding Practices**: Writing computer code that's safe from hackers
-- **Incident Response Basics**: What to do when something goes wrong
-- **Threat Hunting**: Finding hidden dangers in computer systems
-- **Security Tool Development**: Building your own security tools
-- **Cloud Security**: Keeping data safe in the cloud
+- *[More courses to be added]*
 
 ### Expert
-- **Machine Learning for Security**: Using AI to detect threats
-- **Advanced Malware Analysis**: Taking apart dangerous software
-- **Security Architecture Design**: Building secure computer systems
-- **Advanced Network Defense**: Protecting networks from sophisticated attacks
-- **APT Detection and Response**: Finding and stopping advanced hackers
+- *[More courses to be added]*
 
 ## Accessing Courses
 

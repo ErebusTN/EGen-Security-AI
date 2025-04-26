@@ -3,13 +3,15 @@
 Project Structure Generator for EGen Security AI Projects
 
 This script creates a standardized directory structure for security AI projects,
-following the best practices outlined in the project documentation.
+following best practices for Python projects and security applications.
 """
 
 import os
 import argparse
 import logging
+import shutil
 from pathlib import Path
+import sys
 
 # Configure logging
 logging.basicConfig(
@@ -19,24 +21,42 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Default project structure
+# Default project structure with file templates
 DEFAULT_STRUCTURE = {
     "src": {
         "ai": {
-            "models": {"__init__.py": ""},
-            "trainers": {"__init__.py": ""},
-            "evaluation": {"__init__.py": ""},
-            "preprocessing": {"__init__.py": ""},
-            "utils": {"__init__.py": ""},
-            "__init__.py": "",
+            "models": {
+                "__init__.py": "\"\"\"AI models module for the EGen Security AI platform.\"\"\"\n",
+                "base_model.py": "\"\"\"Base model implementation and interfaces.\"\"\"\n"
+            },
+            "trainers": {
+                "__init__.py": "\"\"\"Training modules for AI models.\"\"\"\n"
+            },
+            "evaluation": {
+                "__init__.py": "\"\"\"Model evaluation and metrics.\"\"\"\n"
+            },
+            "preprocessing": {
+                "__init__.py": "\"\"\"Data preprocessing utilities.\"\"\"\n"
+            },
+            "utils": {
+                "__init__.py": "\"\"\"AI utility functions.\"\"\"\n"
+            },
+            "__init__.py": "\"\"\"AI module for the EGen Security AI platform.\"\"\"\n",
         },
         "api": {
-            "endpoints": {"__init__.py": ""},
-            "middleware": {"__init__.py": ""},
-            "__init__.py": "",
+            "endpoints": {
+                "__init__.py": "\"\"\"API endpoints module.\"\"\"\n"
+            },
+            "middleware": {
+                "__init__.py": "\"\"\"API middleware components.\"\"\"\n"
+            },
+            "server.py": "\"\"\"FastAPI server implementation.\"\"\"\n\nfrom fastapi import FastAPI\nfrom fastapi.middleware.cors import CORSMiddleware\n\napp = FastAPI(\n    title=\"EGen Security AI API\",\n    description=\"API for the EGen Security AI Platform\",\n    version=\"1.0.0\",\n)\n\n# Configure CORS\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=[\"*\"],  # In production, specify the exact origins\n    allow_credentials=True,\n    allow_methods=[\"*\"],\n    allow_headers=[\"*\"],\n)\n\n@app.get(\"/\")\nasync def root():\n    \"\"\"Root endpoint that returns basic API information.\"\"\"\n    return {\"message\": \"Welcome to EGen Security AI API\"}\n\n@app.get(\"/health\")\nasync def health_check():\n    \"\"\"Health check endpoint for monitoring systems.\"\"\"\n    return {\"status\": \"healthy\"}\n",
+            "__init__.py": "\"\"\"API module for the EGen Security AI platform.\"\"\"\n",
         },
         "config": {
-            "settings.py": """import os
+            "settings.py": """\"\"\"Configuration settings for the EGen Security AI platform.\"\"\"
+
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -46,69 +66,97 @@ load_dotenv()
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# Application settings
+APP_ENV = os.getenv("APP_ENV", "development")
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
+HOST = os.getenv("HOST", "0.0.0.0")
+PORT = int(os.getenv("PORT", "8000"))
+
 # Security settings
-API_SECRET_KEY = os.getenv("API_SECRET_KEY", "change_this_to_a_secure_random_string")
-API_TOKEN_EXPIRE_MINUTES = int(os.getenv("API_TOKEN_EXPIRE_MINUTES", "30"))
-API_ALLOW_ORIGINS = os.getenv("API_ALLOW_ORIGINS", "").split(",")
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-jwt-secret-here")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 # Database settings
-DB_USER = os.getenv("DB_USER", "postgres")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "egen_security")
-DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/egen_security_ai")
+SQL_DATABASE_URL = os.getenv("SQL_DATABASE_URL", "sqlite:///egen_security_ai.db")
+
+# Directory paths
+MODELS_DIR = os.path.join(BASE_DIR, "models")
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
+DATASETS_DIR = os.path.join(BASE_DIR, "datasets")
 
 # Model settings
 MODEL_PATH = os.getenv("MODEL_PATH", "models/security_model_v1")
-MODEL_VERSION = os.getenv("MODEL_VERSION", "1.0.0")
-MODEL_CONFIDENCE_THRESHOLD = float(os.getenv("MODEL_CONFIDENCE_THRESHOLD", "0.85"))
-MODEL_BATCH_SIZE = int(os.getenv("MODEL_BATCH_SIZE", "32"))
-MODEL_MAX_SEQUENCE_LENGTH = int(os.getenv("MODEL_MAX_SEQUENCE_LENGTH", "512"))
 MODEL_DEVICE = os.getenv("MODEL_DEVICE", "cpu")
+MODEL_PRECISION = os.getenv("MODEL_PRECISION", "fp32")
+CONTEXT_WINDOW = int(os.getenv("CONTEXT_WINDOW", "4096"))
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", "32"))
 
 # Logging settings
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-LOG_FILE = os.getenv("LOG_FILE", "logs/egen_security.log")
 """,
-            "__init__.py": "",
+            "__init__.py": "\"\"\"Configuration module for the EGen Security AI platform.\"\"\"\n\nfrom .settings import *\n",
         },
         "db": {
-            "models": {"__init__.py": ""},
-            "migrations": {"__init__.py": ""},
-            "__init__.py": "",
+            "models": {
+                "__init__.py": "\"\"\"Database models.\"\"\"\n"
+            },
+            "migrations": {
+                "__init__.py": "\"\"\"Database migration scripts.\"\"\"\n"
+            },
+            "connection.py": """\"\"\"Database connection management.\"\"\"
+
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+from src.config import SQL_DATABASE_URL
+
+# Create SQLAlchemy engine
+engine = create_engine(SQL_DATABASE_URL)
+
+# Create session factory
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create base class for models
+Base = declarative_base()
+
+def get_db():
+    \"\"\"Get database session.\"\"\"
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+""",
+            "__init__.py": "\"\"\"Database module for the EGen Security AI platform.\"\"\"\n",
         },
         "security": {
-            "auth.py": """import jwt
-import datetime
+            "auth.py": """\"\"\"Authentication and authorization utilities.\"\"\"
+
+import jwt
+from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-# This is a template for JWT-based authentication
-# In a production environment, use proper key management
+from src.config import JWT_SECRET, ACCESS_TOKEN_EXPIRE_MINUTES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[datetime.timedelta] = None) -> str:
-    """
-    Create a JWT access token
-    """
+def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+    \"\"\"Create a JWT access token.\"\"\"
     to_encode = data.copy()
-    expires = datetime.datetime.utcnow() + (expires_delta or datetime.timedelta(minutes=15))
-    to_encode.update({"exp": expires})
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
     
-    # In production, load this from a secure environment variable
-    secret_key = "change_this_to_a_secure_key"
-    algorithm = "HS256"
-    
-    encoded_jwt = jwt.encode(to_encode, secret_key, algorithm=algorithm)
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm="HS256")
     return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """
-    Validate and decode JWT token to get current user
-    """
+    \"\"\"Validate and decode JWT token to get current user.\"\"\"
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -116,11 +164,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     
     try:
-        # In production, load this from a secure environment variable
-        secret_key = "change_this_to_a_secure_key"
-        algorithm = "HS256"
-        
-        payload = jwt.decode(token, secret_key, algorithms=[algorithm])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
@@ -128,12 +172,271 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
         
     # In a real implementation, you would look up the user in a database
-    # For this template, we just return the username
     return {"username": username}
 """,
-            "__init__.py": "",
+            "encryption.py": """\"\"\"Data encryption utilities.\"\"\"
+
+from cryptography.fernet import Fernet
+from src.config import SECRET_KEY
+
+def get_encryption_key():
+    \"\"\"Generate a Fernet key from the secret key.\"\"\"
+    import base64
+    import hashlib
+    
+    key = hashlib.sha256(SECRET_KEY.encode()).digest()
+    return base64.urlsafe_b64encode(key[:32])
+
+def encrypt_data(data: str) -> str:
+    \"\"\"Encrypt sensitive data.\"\"\"
+    f = Fernet(get_encryption_key())
+    return f.encrypt(data.encode()).decode()
+
+def decrypt_data(encrypted_data: str) -> str:
+    \"\"\"Decrypt encrypted data.\"\"\"
+    f = Fernet(get_encryption_key())
+    return f.decrypt(encrypted_data.encode()).decode()
+""",
+            "__init__.py": "\"\"\"Security module for the EGen Security AI platform.\"\"\"\n",
         },
-        "__init__.py": "",
+        "utils": {
+            "logging_utils.py": """\"\"\"Logging utilities.\"\"\"
+
+import logging
+import sys
+from pathlib import Path
+
+from src.config import LOG_LEVEL, LOGS_DIR
+
+def setup_logging(name: str = "egen_security"):
+    \"\"\"Set up logging configuration.\"\"\"
+    log_file = Path(LOGS_DIR) / f"{name}.log"
+    log_file.parent.mkdir(exist_ok=True)
+    
+    # Create logger
+    logger = logging.getLogger(name)
+    logger.setLevel(getattr(logging, LOG_LEVEL))
+    
+    # Create handlers
+    console_handler = logging.StreamHandler(sys.stdout)
+    file_handler = logging.FileHandler(str(log_file))
+    
+    # Create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    # Set formatter for handlers
+    console_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
+    
+    # Add handlers to logger
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    
+    return logger
+""",
+            "__init__.py": "\"\"\"Utility functions for the EGen Security AI platform.\"\"\"\n",
+        },
+        "main.py": """\"\"\"Main application entry point for EGen Security AI.
+
+This module initializes the FastAPI application, sets up middleware,
+and includes all the API routes.
+\"\"\"
+
+import os
+import sys
+import logging
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from src.api.server import app as api_app
+from src.config import settings
+
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# Use the app from server.py
+app = api_app
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "src.main:app", 
+        host=settings.HOST, 
+        port=settings.PORT, 
+        reload=settings.DEBUG
+    )
+""",
+        "__init__.py": "\"\"\"EGen Security AI - Core module.\"\"\"\n\n__version__ = \"0.1.0\"\n",
+    },
+    "tests": {
+        "conftest.py": """\"\"\"Pytest configuration.\"\"\"
+
+import pytest
+from fastapi.testclient import TestClient
+
+from src.api.server import app
+
+@pytest.fixture
+def client():
+    \"\"\"Create test client.\"\"\"
+    return TestClient(app)
+""",
+        "test_api.py": """\"\"\"API tests.\"\"\"
+
+from fastapi.testclient import TestClient
+
+def test_read_root(client):
+    \"\"\"Test root endpoint.\"\"\"
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "message" in response.json()
+
+def test_health_check(client):
+    \"\"\"Test health check endpoint.\"\"\"
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy"}
+""",
+        "__init__.py": ""
+    },
+    "docs": {
+        "README.md": """# EGen Security AI Documentation
+
+This directory contains documentation for the EGen Security AI platform.
+
+## Contents
+
+- `architecture.md`: System architecture and design
+- `api.md`: API documentation
+- `development.md`: Development guidelines
+- `deployment.md`: Deployment instructions
+
+""",
+        "architecture.md": """# EGen Security AI Architecture
+
+This document describes the architecture of the EGen Security AI platform.
+
+## Overview
+
+The EGen Security AI platform is a comprehensive security solution that uses AI to detect threats, 
+assess risks, and automate security tasks.
+
+## Components
+
+- **AI Core**: Transformer-based models for security analysis
+- **API Layer**: FastAPI-based REST API
+- **Database**: Data storage and management
+- **Security Layer**: Authentication, authorization, and encryption
+- **Frontend**: User interface for interacting with the platform
+
+""",
+    },
+    "scripts": {
+        "setup_env.py": """#!/usr/bin/env python3
+\"\"\"
+Environment setup script for EGen Security AI.
+\"\"\"
+import os
+import sys
+import subprocess
+import argparse
+
+def setup_environment():
+    \"\"\"Set up development environment.\"\"\"
+    # Create virtual environment
+    if not os.path.exists("venv"):
+        print("Creating virtual environment...")
+        subprocess.run([sys.executable, "-m", "venv", "venv"])
+    
+    # Determine Python executable in virtual environment
+    if os.name == "nt":  # Windows
+        python_exe = os.path.join("venv", "Scripts", "python.exe")
+    else:  # Unix/Linux/Mac
+        python_exe = os.path.join("venv", "bin", "python")
+    
+    # Install requirements
+    print("Installing requirements...")
+    subprocess.run([python_exe, "-m", "pip", "install", "-r", "requirements.txt"])
+    
+    # Create .env file if it doesn't exist
+    if not os.path.exists(".env"):
+        print("Creating .env file from .env.example...")
+        if os.path.exists(".env.example"):
+            with open(".env.example", "r") as example_file:
+                with open(".env", "w") as env_file:
+                    env_file.write(example_file.read())
+        else:
+            print("Warning: .env.example not found. Creating empty .env file.")
+            with open(".env", "w") as env_file:
+                env_file.write("# Environment variables for EGen Security AI\\n")
+    
+    print("Environment setup complete.")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Set up development environment")
+    args = parser.parse_args()
+    setup_environment()
+""",
+        "init_db.py": """#!/usr/bin/env python3
+\"\"\"
+Database initialization script for EGen Security AI.
+\"\"\"
+import os
+import sys
+import argparse
+import logging
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from src.config import SQL_DATABASE_URL
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def init_database():
+    \"\"\"Initialize the database.\"\"\"
+    try:
+        from sqlalchemy import create_engine
+        from sqlalchemy_utils import database_exists, create_database
+        
+        engine = create_engine(SQL_DATABASE_URL)
+        
+        if not database_exists(engine.url):
+            create_database(engine.url)
+            logger.info(f"Created database: {SQL_DATABASE_URL}")
+        else:
+            logger.info(f"Database already exists: {SQL_DATABASE_URL}")
+        
+        # Import all models to create tables
+        from src.db.models import Base
+        Base.metadata.create_all(bind=engine)
+        logger.info("Created database tables")
+        
+        logger.info("Database initialization complete")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize database: {e}")
+        return False
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Initialize database")
+    args = parser.parse_args()
+    
+    if init_database():
+        sys.exit(0)
+    else:
+        sys.exit(1)
+""",
     },
     "client": {
         "public": {
@@ -144,6 +447,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EGen Security AI</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="favicon.ico">
 </head>
 <body>
     <div id="root"></div>
@@ -152,28 +456,37 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 </html>"""
         },
         "src": {
-            "components": {},
-            "pages": {},
-            "utils": {},
-            "services": {},
-            "App.js": """// Sample React application entry point
+            "components": {
+                "index.js": "// Export all components\n"
+            },
+            "pages": {
+                "index.js": "// Export all pages\n"
+            },
+            "utils": {
+                "api.js": "// API utility functions\n"
+            },
+            "services": {
+                "index.js": "// Export all services\n"
+            },
+            "App.js": """// Main Application Component
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Import components (to be created)
-import Dashboard from './pages/Dashboard';
-import Login from './pages/Login';
-import NotFound from './pages/NotFound';
+// Import pages (to be created)
+// import Dashboard from './pages/Dashboard';
+// import Login from './pages/Login';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </BrowserRouter>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<div>Dashboard</div>} />
+          <Route path="/login" element={<div>Login</div>} />
+          <Route path="*" element={<div>Not Found</div>} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 
@@ -186,8 +499,8 @@ export default App;"""
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.0",
-    "axios": "^1.3.0"
+    "react-router-dom": "^6.12.0",
+    "axios": "^1.4.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -215,341 +528,156 @@ export default App;"""
   }
 }"""
     },
-    "scripts": {
-        "init_db.py": """#!/usr/bin/env python3
-\"\"\"
-Database initialization script
-\"\"\"
-import os
-import sys
-import logging
-from sqlalchemy import create_engine
-from sqlalchemy_utils import database_exists, create_database
+    ".env.example": """# Environment variables for EGen Security AI
 
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-# Import project settings
-from src.config.settings import DB_URL
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def init_database():
-    \"\"\"Initialize the database if it doesn't exist\"\"\"
-    engine = create_engine(DB_URL)
-    
-    if not database_exists(engine.url):
-        create_database(engine.url)
-        logger.info(f"Created database: {DB_URL}")
-    else:
-        logger.info(f"Database already exists: {DB_URL}")
-    
-    # Here you would typically run migrations
-    logger.info("Database initialization complete")
-
-if __name__ == "__main__":
-    init_database()
-""",
-        "lint.sh": """#!/bin/bash
-# Run all linting tools
-
-echo "Running black..."
-black src tests
-
-echo "Running isort..."
-isort src tests
-
-echo "Running flake8..."
-flake8 src tests
-
-echo "Running mypy..."
-mypy src
-
-echo "Running bandit..."
-bandit -r src
-""",
-    },
-    "tests": {
-        "unit": {
-            "__init__.py": "",
-            "test_security.py": """import pytest
-from src.security.auth import create_access_token
-
-def test_create_access_token():
-    # Test that token creation works
-    data = {"sub": "testuser"}
-    token = create_access_token(data)
-    assert token is not None
-    assert isinstance(token, str)
-"""
-        },
-        "integration": {
-            "__init__.py": ""
-        },
-        "fixtures": {
-            "__init__.py": ""
-        },
-        "__init__.py": "",
-        "conftest.py": """import pytest
-import os
-import sys
-
-# Add parent directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-@pytest.fixture
-def test_client():
-    # Here you would set up a test client for your API
-    pass
-"""
-    },
-    "models": {},
-    "datasets": {
-        "raw": {},
-        "processed": {}
-    },
-    "logs": {},
-    "docs": {
-        "api": {},
-        "guides": {
-            "getting_started.md": """# Getting Started
-
-This guide will help you set up and run the EGen Security AI project.
-
-## Prerequisites
-
-- Python 3.8 or later
-- PostgreSQL 12 or later
-- Node.js 14 or later (for client applications)
-
-## Installation
-
-1. Clone the repository
-2. Create a virtual environment
-3. Install dependencies
-4. Set up environment variables
-5. Initialize the database
-
-See the main README.md for detailed instructions.
-"""
-        },
-        "examples": {}
-    },
-    "courses": {
-        "basics": {},
-        "advanced": {},
-        "expert": {}
-    },
-    ".env.example": """# Security Configuration
-# -------------------------------------------------
-# IMPORTANT: This is an example file. DO NOT store real secrets here.
-# Create a .env file with your actual credentials.
-
-# API Security
-API_SECRET_KEY=change_this_to_a_secure_random_string
-API_TOKEN_EXPIRE_MINUTES=30
-API_ALLOW_ORIGINS=http://localhost:3000,http://localhost:8000
-
-# Database Configuration
-DB_USER=postgres
-DB_PASSWORD=change_this_to_a_secure_password
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=egen_security
-
-# AI Model Configuration
-MODEL_PATH=models/security_model_v1
-MODEL_VERSION=1.0.0
-MODEL_CONFIDENCE_THRESHOLD=0.85
-MODEL_BATCH_SIZE=32
-MODEL_MAX_SEQUENCE_LENGTH=512
-MODEL_DEVICE=cpu
-
-# Logging
+# Application Settings
+APP_ENV=development  # development, staging, production
+DEBUG=True
+PORT=8000
+HOST=0.0.0.0
 LOG_LEVEL=INFO
-LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s
-LOG_FILE=logs/egen_security.log
+
+# Security
+SECRET_KEY=your-secret-key-here
+JWT_SECRET=your-jwt-secret-here
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Database
+MONGODB_URI=mongodb://localhost:27017/egen_security_ai
+SQL_DATABASE_URL=sqlite:///egen_security_ai.db
+
+# Model Settings
+MODEL_PATH=models/security_model_v1
+MODEL_DEVICE=cpu
+MODEL_PRECISION=fp32
+CONTEXT_WINDOW=4096
+BATCH_SIZE=32
 """,
-    ".gitignore": """# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-coverage.xml
-*.cover
-.hypothesis/
+    "Dockerfile": """FROM python:3.11-slim
 
-# NodeJS & React
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-.pnp/
-.pnp.js
-coverage/
-.next/
-out/
-build/
-.DS_Store
-*.pem
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+WORKDIR /app
 
-# Virtual Environment
-venv/
-env/
-ENV/
-.env
-.venv/
-pythonenv*/
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+    build-essential \\
+    curl \\
+    && rm -rf /var/lib/apt/lists/*
 
-# IDEs and editors
-.idea/
-.vscode/
-*.swp
-*.swo
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
-*.sublime-project
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# AI Model files
-*.pth
-*.pt
-*.h5
-*.bin
-*.onnx
-*.safetensors
-*.ckpt
-models/**/*.json
-models/**/*.pb
-models/**/*.savedmodel
-models/**/variables/
+# Copy the rest of the application
+COPY . .
 
-# Large data files
-*.csv
-*.xlsx
-*.sqlite
-*.db
-datasets/raw/
-datasets/processed/
-datasets/external/
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \\
+    PORT=8000 \\
+    HOST=0.0.0.0
 
-# Logs
-logs/
-*.log
+# Expose the API port
+EXPOSE 8000
 
-# Security sensitive files
-.env
-**/*.pem
-**/*.key
-**/*.crt
-**/*.p12
-**/*.pfx
+# Command to run the application
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+""",
+    "docker-compose.yml": """version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: egen_security_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+    environment:
+      - APP_ENV=development
+      - DEBUG=True
+      - PORT=8000
+      - HOST=0.0.0.0
+      - MONGODB_URI=mongodb://mongodb:27017/egen_security_ai
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:6.0
+    container_name: egen_security_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
 """,
     "requirements.txt": """# Core dependencies
-numpy>=1.22.0
-pandas>=1.4.0
-scikit-learn>=1.0.0
-torch>=1.10.0
-transformers>=4.15.0
-fastapi>=0.70.0
-uvicorn>=0.15.0
-pydantic>=1.9.0
-python-dotenv>=0.19.0
-sqlalchemy>=1.4.0
-psycopg2-binary>=2.9.0
-alembic>=1.7.0
-pyjwt>=2.3.0
-cryptography>=36.0.0
-requests>=2.27.0
+fastapi>=0.95.0
+uvicorn>=0.22.0
+pydantic>=1.10.7
+python-dotenv>=1.0.0
+sqlalchemy>=2.0.15
+pymongo>=4.3.3
+pyjwt>=2.7.0
+cryptography>=40.0.2
+passlib>=1.7.4
+python-multipart>=0.0.6
+requests>=2.31.0
+aiofiles>=23.1.0
 
-# Development dependencies
-pytest>=6.2.5
-flake8>=4.0.0
-black>=21.12b0
-isort>=5.10.0
-mypy>=0.910
-pytest-cov>=2.12.0
-pre-commit>=2.16.0
-bandit>=1.7.0
-safety>=1.10.0
+# AI and machine learning
+torch>=2.0.0
+transformers>=4.29.2
+numpy>=1.24.3
+pandas>=2.0.2
+scikit-learn>=1.2.2
 
-# Documentation
-sphinx>=4.3.0
-sphinx-rtd-theme>=1.0.0
+# Development and testing
+pytest>=7.3.1
+black>=23.3.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.3.0
+httpx>=0.24.1
+pytest-cov>=4.1.0
 """,
-    "setup.py": """from setuptools import setup, find_packages
+    "setup.py": """\"\"\"
+EGen Security AI Setup Script.
+
+This script installs the EGen Security AI package.
+\"\"\"
+
+from setuptools import setup, find_packages
 
 setup(
     name="egen_security_ai",
     version="0.1.0",
     description="Security AI system for threat detection and response",
     author="EGen Security Team",
-    author_email="info@egensecurity.ai",
+    author_email="info@egensecurity.com",
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "numpy>=1.22.0",
-        "pandas>=1.4.0",
-        "scikit-learn>=1.0.0",
-        "torch>=1.10.0",
-        "transformers>=4.15.0",
-        "fastapi>=0.70.0",
-        "pydantic>=1.9.0",
-        "python-dotenv>=0.19.0",
-        "uvicorn>=0.15.0",
-        "sqlalchemy>=1.4.0",
-        "psycopg2-binary>=2.9.0",
-        "alembic>=1.7.0",
-        "pyjwt>=2.3.0",
-        "cryptography>=36.0.0",
-        "requests>=2.27.0",
+        "fastapi>=0.95.0",
+        "uvicorn>=0.22.0",
+        "pydantic>=1.10.7",
+        "python-dotenv>=1.0.0",
+        "sqlalchemy>=2.0.15",
+        "pymongo>=4.3.3",
+        "pyjwt>=2.7.0",
+        "cryptography>=40.0.2",
+        "passlib>=1.7.4",
     ],
     extras_require={
         "dev": [
-            "pytest>=6.2.5",
-            "flake8>=4.0.0",
-            "black>=21.12b0",
-            "isort>=5.10.0",
-            "mypy>=0.910",
-            "pytest-cov>=2.12.0",
-            "pre-commit>=2.16.0",
-            "bandit>=1.7.0",
-            "safety>=1.10.0",
-        ],
-        "docs": [
-            "sphinx>=4.3.0",
-            "sphinx-rtd-theme>=1.0.0",
+            "pytest>=7.3.1",
+            "black>=23.3.0",
+            "isort>=5.12.0",
+            "flake8>=6.0.0",
+            "mypy>=1.3.0",
         ],
     },
     python_requires=">=3.8",
@@ -565,280 +693,237 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )
 """,
-    "main.py": """#!/usr/bin/env python3
-\"\"\"
-Main entry point for the EGen Security AI application
-\"\"\"
-import os
-import logging
-import uvicorn
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from datetime import datetime, timedelta
-from typing import Dict
-
-# Import configuration
-from src.config.settings import (
-    API_SECRET_KEY, 
-    API_TOKEN_EXPIRE_MINUTES, 
-    API_ALLOW_ORIGINS,
-    LOG_LEVEL,
-    LOG_FILE
-)
-
-# Import security utilities
-from src.security.auth import create_access_token, get_current_user
-
-# Configure logging
-os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Create FastAPI app
-app = FastAPI(
-    title="EGen Security AI",
-    description="Security AI system for threat detection and response",
-    version="0.1.0"
-)
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=API_ALLOW_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Define endpoints
-@app.get("/")
-async def root():
-    return {"message": "Welcome to EGen Security AI"}
-
-@app.post("/token")
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> Dict:
-    # This is a simple demo - in production, validate against a secure database
-    if form_data.username != "demo" or form_data.password != "demo123":
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    
-    access_token_expires = timedelta(minutes=API_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": form_data.username}, 
-        expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@app.get("/users/me")
-async def read_users_me(current_user = Depends(get_current_user)):
-    return current_user
-
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat()
-    }
-
-def main():
-    \"\"\"Run the application\"\"\"
-    logger.info("Starting EGen Security AI application")
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
-
-if __name__ == "__main__":
-    main()
-""",
     "README.md": """# EGen Security AI
 
-An advanced AI-powered security system for threat detection, analysis, and response.
-
-## Project Overview
-
-EGen Security AI is a comprehensive security platform that uses machine learning and AI to detect, analyze, and respond to security threats. The system is designed to be modular, scalable, and adaptable to different security contexts.
+An integrated AI-powered security solution for threat detection, risk assessment, and security training.
 
 ## Features
 
-- **Threat Detection**: Identify potential security threats in real-time
-- **Anomaly Detection**: Detect unusual patterns that may indicate security breaches
-- **Risk Assessment**: Evaluate and prioritize security risks
-- **Automated Response**: Automate security responses to common threats
-- **Security Analytics**: Gain insights from security data analysis
-- **API Integration**: Integrate with existing security tools and systems
+- AI-powered threat detection
+- Security training modules
+- Data visualization
+- Robust API
+- User authentication
+- File scanning
+- Real-time monitoring
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
+- Python 3.9+
+- Node.js 16.0+
+- MongoDB 5.0+ (optional)
 
-- Python 3.8 or later
-- PostgreSQL 12 or later
-- Node.js 14 or later (for client applications)
-
-### Installation
+## Quick Start
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/egen-security-ai.git
+   git clone https://github.com/your-org/egen-security-ai.git
    cd egen-security-ai
    ```
 
-2. Create and activate a virtual environment:
+2. Set up the environment:
    ```bash
-   python -m venv venv
-   # On Windows
-   venv\\Scripts\\activate
-   # On Unix or MacOS
-   source venv/bin/activate
+   python scripts/setup_env.py
    ```
 
-3. Install dependencies:
+3. Activate the virtual environment:
+   - Windows: `venv\\Scripts\\activate`
+   - Unix/Mac: `source venv/bin/activate`
+
+4. Run the application:
    ```bash
-   pip install -e ".[dev]"
+   python -m src.main
    ```
 
-4. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-5. Initialize the database:
-   ```bash
-   python scripts/init_db.py
-   ```
-
-### Usage
-
-1. Start the API server:
-   ```bash
-   python main.py
-   ```
-
-2. Access the API at `http://localhost:8000`
-
-3. Access the web client at `http://localhost:3000` (if available)
+5. Open your browser at http://localhost:8000
 
 ## Development
 
-### Code Style
+### Backend
 
-This project uses:
-- Black for code formatting
-- isort for import sorting
-- flake8 for linting
-- mypy for type checking
+1. Start the backend server:
+   ```bash
+   uvicorn src.main:app --reload
+   ```
 
-Run all code quality checks:
-```bash
-scripts/lint.sh
-```
+2. Access the API documentation at http://localhost:8000/docs
 
-### Testing
+### Frontend
 
-Run the test suite:
-```bash
-pytest
-```
+1. Navigate to the client directory:
+   ```bash
+   cd client
+   ```
 
-With coverage:
-```bash
-pytest --cov=src
-```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm start
+   ```
+
+4. Access the frontend at http://localhost:3000
+
+## Docker Deployment
+
+1. Build and start the containers:
+   ```bash
+   docker-compose up -d
+   ```
+
+2. Access the API at http://localhost:8000
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+""",
+    ".gitignore": """# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+.venv/
 
-## Contributing
+# JavaScript
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+/client/build
 
-Contributions are welcome! Please read the contributing guidelines before submitting pull requests.
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
 
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Operating System
+.DS_Store
+Thumbs.db
+
+# Project specific
+/logs/
+/models/
+/datasets/
+/client/.cache/
 """
 }
 
-
-def create_directory_structure(base_path, structure, skip_existing=True):
-    """Create the directory structure."""
-    base_path = Path(base_path)
-    
+def create_dir_structure(base_path, structure, dry_run=False):
+    """Create directory structure recursively."""
     for name, content in structure.items():
-        path = base_path / name
+        path = os.path.join(base_path, name)
         
-        # If content is a dictionary, it's a directory
         if isinstance(content, dict):
-            # Create directory if it doesn't exist
-            if not path.exists():
-                logger.info(f"Creating directory: {path}")
-                path.mkdir(parents=True, exist_ok=True)
-            elif not path.is_dir():
-                logger.warning(f"Path exists but is not a directory: {path}")
-                continue
-                
-            # Recursively create contents
-            create_directory_structure(path, content, skip_existing)
+            if not dry_run:
+                os.makedirs(path, exist_ok=True)
+                logger.info(f"Created directory: {path}")
+            create_dir_structure(path, content, dry_run)
         else:
-            # It's a file
-            if path.exists() and skip_existing:
-                logger.info(f"Skipping existing file: {path}")
-                continue
+            if not dry_run:
+                # Make sure the parent directory exists
+                os.makedirs(os.path.dirname(path), exist_ok=True)
                 
-            # Create parent directories if they don't exist
-            path.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Write file content
-            logger.info(f"Creating file: {path}")
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(content)
-                
-            # Make scripts executable
-            if path.suffix == '.py' or path.suffix == '.sh':
-                os.chmod(path, 0o755)
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                logger.info(f"Created file: {path}")
 
+def create_initial_dirs(base_path, dry_run=False):
+    """Create initial directories that might not be in the structure."""
+    dirs = ["logs", "models", "datasets"]
+    for dir_name in dirs:
+        path = os.path.join(base_path, dir_name)
+        if not dry_run:
+            os.makedirs(path, exist_ok=True)
+            with open(os.path.join(path, ".gitkeep"), 'w') as f:
+                f.write("")
+            logger.info(f"Created directory: {path}")
 
 def main():
-    """Main function."""
+    """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Create a standardized project structure for security AI projects"
+        description="Create a standardized project structure for EGen Security AI projects."
     )
     parser.add_argument(
-        "--path", 
+        "--output", 
+        "-o", 
         default=".", 
-        help="Base path for creating the project structure (default: current directory)"
+        help="Output directory for the project structure"
+    )
+    parser.add_argument(
+        "--dry-run", 
+        "-d", 
+        action="store_true", 
+        help="Print what would be done without creating files"
     )
     parser.add_argument(
         "--force", 
+        "-f", 
         action="store_true", 
-        help="Overwrite existing files"
+        help="Force overwrite of existing files"
     )
     
     args = parser.parse_args()
     
-    logger.info(f"Creating project structure at: {args.path}")
-    create_directory_structure(args.path, DEFAULT_STRUCTURE, skip_existing=not args.force)
-    logger.info("Project structure creation complete!")
+    output_dir = args.output
+    dry_run = args.dry_run
+    force = args.force
     
-    # Additional instructions
-    logger.info("\nNext steps:")
-    logger.info("1. Customize the configuration in .env")
-    logger.info("2. Install dependencies: pip install -e '.[dev]'")
-    logger.info("3. Initialize the database: python scripts/init_db.py")
-    logger.info("4. Start the application: python main.py")
-
+    if dry_run:
+        logger.info("Dry run mode - no files will be created")
+    
+    # Check if output directory exists and is not empty
+    if os.path.exists(output_dir) and os.listdir(output_dir) and not force:
+        logger.error(f"Output directory {output_dir} is not empty. Use --force to overwrite.")
+        sys.exit(1)
+    
+    # Create the directory structure
+    logger.info(f"Creating project structure in {output_dir}")
+    create_dir_structure(output_dir, DEFAULT_STRUCTURE, dry_run)
+    create_initial_dirs(output_dir, dry_run)
+    
+    if not dry_run:
+        logger.info("✓ Project structure created successfully")
+        logger.info("\nNext steps:")
+        logger.info("1. Create a virtual environment: python -m venv venv")
+        logger.info("2. Activate the virtual environment:")
+        logger.info("   - Windows: venv\\Scripts\\activate")
+        logger.info("   - Unix/Mac: source venv/bin/activate")
+        logger.info("3. Install dependencies: pip install -r requirements.txt")
+        logger.info("4. Configure environment variables: cp .env.example .env")
+        logger.info("5. Run the application: python -m src.main")
 
 if __name__ == "__main__":
     main() 
